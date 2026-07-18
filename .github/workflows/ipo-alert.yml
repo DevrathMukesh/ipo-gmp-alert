@@ -2,7 +2,7 @@ name: IPO GMP Alert
 
 on:
   schedule:
-    - cron: "39 3 * * *"
+    - cron: "4 21 * * *"
   workflow_dispatch:
 
 jobs:
