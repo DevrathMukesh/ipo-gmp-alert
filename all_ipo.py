@@ -1,9 +1,12 @@
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
+from dateutil import parser
+import re
+from datetime import date
 
 
 HEADERS = {
@@ -13,6 +16,7 @@ HEADERS = {
         "Chrome/138.0.0.0 Safari/537.36"
     )
 }
+
 
 
 def fetch_ipo_master(url: str = "https://ipowatch.in/upcoming-ipo-list/") -> list[dict]:
@@ -25,7 +29,9 @@ def fetch_ipo_master(url: str = "https://ipowatch.in/upcoming-ipo-list/") -> lis
         raise Exception("IPO table not found")
 
     data = []
-    today = date.today()
+    # today = date.today()
+    today = date.today() + timedelta(days=1)  # Adjust for timezone if needed
+    
 
     for row in table.find("tbody").find_all("tr"):
         cols = row.find_all("td")
@@ -37,11 +43,17 @@ def fetch_ipo_master(url: str = "https://ipowatch.in/upcoming-ipo-list/") -> lis
         company = company_cell.get_text(" ", strip=True)
 
         ipo_date_text = cols[1].get_text(" ", strip=True)
+        print(repr(ipo_date_text))
         ipo_size = cols[2].get_text(" ", strip=True)
         price_band = cols[3].get_text(" ", strip=True)
         apply_link = cols[4].find("a")["href"] if cols[4].find("a") else ""
 
         open_date, close_date = parse_ipo_dates(ipo_date_text)
+        print(
+            f"{company:30} | "
+            f"{ipo_date_text:15} | "
+            f"{open_date} -> {close_date}"
+        )
         status = "future"
         if open_date and close_date:
             if open_date <= today <= close_date:
@@ -69,34 +81,54 @@ def fetch_ipo_master(url: str = "https://ipowatch.in/upcoming-ipo-list/") -> lis
     return data
 
 
-def parse_ipo_dates(ipo_date_text: str):
-    if not ipo_date_text:
-        return None, None
+from calendar import month_name
 
-    text = ipo_date_text.strip()
-    year = date.today().year
-    month_match = re.search(
-        r"(January|February|March|April|May|June|July|August|September|October|November|December)",
+MONTH_NUMBERS = {
+    "jan": 1,
+    "feb": 2,
+    "mar": 3,
+    "apr": 4,
+    "may": 5,
+    "jun": 6,
+    "jul": 7,
+    "aug": 8,
+    "sep": 9,
+    "oct": 10,
+    "nov": 11,
+    "dec": 12,
+}
+
+def parse_ipo_dates(text):
+    text = text.strip()
+
+    m = re.search(
+        r"(\d+)\s*-\s*(\d+)\s*"
+        r"(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)",
         text,
-        re.IGNORECASE,
+        re.I,
     )
-    month_name = month_match.group(1).title() if month_match else None
 
-    if not month_name:
-        month_name = date.today().strftime("%B")
-
-    numbers = re.findall(r"\d+", text)
-    if not numbers:
+    if not m:
         return None, None
 
-    try:
-        start_day = int(numbers[0])
-        end_day = int(numbers[1]) if len(numbers) > 1 else start_day
-        start_date = datetime.strptime(f"{year} {month_name} {start_day}", "%Y %B %d").date()
-        end_date = datetime.strptime(f"{year} {month_name} {end_day}", "%Y %B %d").date()
-        return start_date, end_date
-    except ValueError:
-        return None, None
+    start_day = int(m.group(1))
+    end_day = int(m.group(2))
+
+    end_month = MONTH_NUMBERS[m.group(3)[:3].lower()]
+    start_month = end_month
+
+    year = date.today().year
+
+    if end_day < start_day:
+        start_month -= 1
+        if start_month == 0:
+            start_month = 12
+            year -= 1
+
+    return (
+        date(year, start_month, start_day),
+        date(year, end_month, end_day),
+    )
 
 
 def build_gmp_url(ipo_link: str) -> str:
@@ -189,12 +221,31 @@ def parse_numeric_value(raw_value):
 
 def build_combined_dataset() -> pd.DataFrame:
     ipo_rows = fetch_ipo_master()
+    active = [row for row in ipo_rows if row["Status"] == "active"]
+
+    print(f"Today's date: {date.today()}")
+    print(f"Active IPOs: {len(active)}")
+
+    for row in active:
+        print(row["Company"], row["Open Date"], row["Close Date"])
+    print(f"Found {len(ipo_rows)} IPOs")
+
     enriched_rows = []
 
-    for row in ipo_rows:
-        gmp_data = fetch_gmp_data(row["GMP URL"]) if row["Status"] == "active" else {}
-        enriched_rows.append({**row, **gmp_data})
+    EMPTY_GMP = {
+        "Current GMP": None,
+        "Latest Gain %": None,
+        "Last Updated": None,
+        "GMP History": [],
+    }
 
+    for row in ipo_rows:
+        if row["Status"] == "active":
+            gmp_data = fetch_gmp_data(row["GMP URL"])
+        else:
+            gmp_data = EMPTY_GMP.copy()
+
+        enriched_rows.append({**row, **gmp_data})
     return pd.DataFrame(enriched_rows)
 
 

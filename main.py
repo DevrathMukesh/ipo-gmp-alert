@@ -41,9 +41,9 @@ load_env_file()
 
 
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+print(f"Loaded TELEGRAM_BOT_TOKEN: {TOKEN[:4]}...{TOKEN[-4:]}" if TOKEN else "TELEGRAM_BOT_TOKEN not set")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
-
-
+print(f"Loaded TELEGRAM_CHAT_ID: {CHAT_ID}" if CHAT_ID else "TELEGRAM_CHAT_ID not set")
 
 # -----------------------------
 # FORMAT
@@ -366,11 +366,11 @@ def build_alert_message(rows):
 
 
         lines.append(
+            f"Gain: {format_value(summary['current_gmp'])}"
+        )
 
-            f"GMP: {format_value(summary['current_gmp'])}"
-
-            f"{change_text}"
-
+        lines.append(
+            f"Current GMP: {row.get('Current GMP')}"
         )
 
 
@@ -556,7 +556,11 @@ def send_telegram_message(text):
     )
 
 
-    response.raise_for_status()
+    if not response.ok:
+        print("Telegram Error:")
+        print(response.status_code)
+        print(response.text)
+        return
 
 
 
@@ -568,6 +572,15 @@ def main():
 
 
     df = build_combined_dataset()
+    print(df[[
+        "Company",
+        "Status",
+        "Current GMP",
+        "Latest Gain %",
+    ]])
+
+    print("\nStatus counts:")
+    print(df["Status"].value_counts())
 
 
     filtered=[]
@@ -576,22 +589,30 @@ def main():
 
     for _,row in df.iterrows():
 
-
+        print(
+            row["Company"],
+            row["Status"],
+            row.get("Current GMP"),
+        )
         if row.get("Status") != "active":
 
             continue
 
 
 
-        gmp_value = parse_numeric_value(
-
-            row.get("Current GMP")
-
+        gain = parse_numeric_value(
+            row.get("Latest Gain %")
         )
 
+        print(
+            row["Company"],
+            row["Status"],
+            row.get("Current GMP"),
+            row.get("Latest Gain %"),
+            gain,
+        )
 
-        if gmp_value is not None and gmp_value > 10:
-
+        if gain is not None and gain > 10:
             filtered.append(row)
 
 
