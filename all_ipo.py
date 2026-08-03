@@ -43,17 +43,11 @@ def fetch_ipo_master(url: str = "https://ipowatch.in/upcoming-ipo-list/") -> lis
         company = company_cell.get_text(" ", strip=True)
 
         ipo_date_text = cols[1].get_text(" ", strip=True)
-        print(repr(ipo_date_text))
         ipo_size = cols[2].get_text(" ", strip=True)
         price_band = cols[3].get_text(" ", strip=True)
         apply_link = cols[4].find("a")["href"] if cols[4].find("a") else ""
 
         open_date, close_date = parse_ipo_dates(ipo_date_text)
-        print(
-            f"{company:30} | "
-            f"{ipo_date_text:15} | "
-            f"{open_date} -> {close_date}"
-        )
         status = "future"
         if open_date and close_date:
             if open_date <= today <= close_date:
@@ -223,12 +217,6 @@ def build_combined_dataset() -> pd.DataFrame:
     ipo_rows = fetch_ipo_master()
     active = [row for row in ipo_rows if row["Status"] == "active"]
 
-    print(f"Today's date: {date.today()}")
-    print(f"Active IPOs: {len(active)}")
-
-    for row in active:
-        print(row["Company"], row["Open Date"], row["Close Date"])
-    print(f"Found {len(ipo_rows)} IPOs")
 
     enriched_rows = []
 
@@ -251,9 +239,7 @@ def build_combined_dataset() -> pd.DataFrame:
 
 def main() -> None:
     df = build_combined_dataset()
-    print(df[["Company", "Status", "IPO Date", "Current GMP", "Latest Gain %", "Last Updated"]].head(10))
     df.to_csv("upcoming_ipos.csv", index=False)
-    print("\nSaved upcoming_ipos.csv")
 
 
 if __name__ == "__main__":
