@@ -29,8 +29,8 @@ def fetch_ipo_master(url: str = "https://ipowatch.in/upcoming-ipo-list/") -> lis
         raise Exception("IPO table not found")
 
     data = []
-    # today = date.today()
-    today = date.today() + timedelta(days=1)  # Adjust for timezone if needed
+    today = date.today()
+    # today = date.today() + timedelta(days=1)  # Adjust for timezone if needed
     
 
     for row in table.find("tbody").find_all("tr"):
