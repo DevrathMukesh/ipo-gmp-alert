@@ -41,9 +41,9 @@ load_env_file()
 
 
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-print(f"Loaded TELEGRAM_BOT_TOKEN: {TOKEN[:4]}...{TOKEN[-4:]}" if TOKEN else "TELEGRAM_BOT_TOKEN not set")
+# print(f"Loaded TELEGRAM_BOT_TOKEN: {TOKEN[:4]}...{TOKEN[-4:]}" if TOKEN else "TELEGRAM_BOT_TOKEN not set")
 CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
-print(f"Loaded TELEGRAM_CHAT_ID: {CHAT_ID}" if CHAT_ID else "TELEGRAM_CHAT_ID not set")
+# print(f"Loaded TELEGRAM_CHAT_ID: {CHAT_ID}" if CHAT_ID else "TELEGRAM_CHAT_ID not set")
 
 # -----------------------------
 # FORMAT
@@ -572,15 +572,6 @@ def main():
 
 
     df = build_combined_dataset()
-    print(df[[
-        "Company",
-        "Status",
-        "Current GMP",
-        "Latest Gain %",
-    ]])
-
-    print("\nStatus counts:")
-    print(df["Status"].value_counts())
 
 
     filtered=[]
@@ -589,11 +580,7 @@ def main():
 
     for _,row in df.iterrows():
 
-        print(
-            row["Company"],
-            row["Status"],
-            row.get("Current GMP"),
-        )
+
         if row.get("Status") != "active":
 
             continue
@@ -604,13 +591,6 @@ def main():
             row.get("Latest Gain %")
         )
 
-        print(
-            row["Company"],
-            row["Status"],
-            row.get("Current GMP"),
-            row.get("Latest Gain %"),
-            gain,
-        )
 
         if gain is not None and gain > 10:
             filtered.append(row)
@@ -627,8 +607,6 @@ def main():
 
     message = build_alert_message(filtered)
 
-
-    print(message)
 
 
     send_telegram_message(message)
